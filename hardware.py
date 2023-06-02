@@ -27,7 +27,6 @@ Author:
 """
 
 import traceback as tb
-import json
 
 import xml_api
 
@@ -172,17 +171,33 @@ class Hardware:
             List of dictionaries containing CPU information
         """
 
-        print(json.dumps(self.raw_resources, indent=4))
+        top = self.raw_resources['response']['result']
+        top = top.split('\n')
+        cpu_avg = top[0].split(',')
+        cpu_stats = top[2].split(',')
 
-        cpu_list = [
-            {
-                "used": '',
-                "idle": '',
-                "1_min": '',
-                "5_min": '',
-                "15_min": ''
-            }
-        ]
+        cpu_list = {
+            "cpu": [
+                {
+                    "used": float(
+                        cpu_stats[0].replace('%Cpu(s):  ', '')
+                        .replace(' us', '')
+                    ),
+                    "idle": float(
+                        cpu_stats[3].replace(' id', '').replace(' ', '')
+                    ),
+                    "1_min": float(
+                        cpu_avg[3].replace('  load average: ', '')
+                    ),
+                    "5_min": float(
+                        cpu_avg[4].replace(' ', '')
+                    ),
+                    "15_min": float(
+                        cpu_avg[5].replace(' ', '')
+                    ),
+                }
+            ]
+        }
 
         return cpu_list
 
@@ -205,14 +220,30 @@ class Hardware:
             List of dictionaries containing memory information
         """
 
-        print(json.dumps(self.raw_resources, indent=4))
+        top = self.raw_resources['response']['result']
+        top = top.split('\n')
+        mem_stats = top[3].split(',')
 
-        info = [
-            {
-                "total": '',
-                "used": '',
-            }
-        ]
+        total = (
+            mem_stats[0]
+            .replace('KiB Mem : ', '')
+            .replace(' total', '')
+            .replace(' ', '')
+        )
+        used = (
+            mem_stats[2]
+            .replace(' used', '')
+            .replace(' ', '')
+        )
+
+        info = {
+            "memory": [
+                {
+                    "total": int(total),
+                    "used": int(used)
+                }
+            ]
+        }
 
         return info
 
@@ -235,15 +266,18 @@ class Hardware:
             List of dictionaries containing disk information
         """
 
-        print(json.dumps(self.raw_disk, indent=4))
+        storage = {
+            "disk": [
+            ]
+        }
 
-        storage = [
-            {
-                "disk": '',
-                "size": '',
-                "used": '',
-            }
-        ]
+        disk_list = self.raw_disk['response']['result'].split('\n')
+        for item in disk_list[1::]:
+            entry = {}
+            entry['disk'] = item.split()[0]
+            entry['size'] = item.split()[1]
+            entry['used'] = item.split()[2]
+            storage['disk'].append(entry)
 
         return storage
 
@@ -266,14 +300,24 @@ class Hardware:
             List of dictionaries containing temperature information
         """
 
-        print(json.dumps(self.raw_env, indent=4))
+        info = {
+            "temperature": [
+                {
+                    "cpu": '',
+                    "chassis": '',
+                }
+            ]
+        }
 
-        info = [
-            {
-                "cpu": '',
-                "chassis": '',
-            }
-        ]
+        dev_temp = (
+            self.raw_env['response']['result']['thermal']['Slot1']['entry']
+        )
+
+        for item in dev_temp:
+            entry = {}
+            entry['cpu'] = item['DegreesC']
+            entry['chassis'] = item['description']
+            info['temperature'].append(entry)
 
         return info
 
@@ -296,16 +340,25 @@ class Hardware:
             List of dictionaries containing fan information
         """
 
-        print(json.dumps(self.raw_env, indent=4))
+        info = {
+            'fan': [
+            ]
+        }
 
-        info = [
-            {
-                "fan": '',
-                "status": '',
-                "rpm": '',
-                "detail": '',
-            }
-        ]
+        fan_data = self.raw_env['response']['result']['fan']['Slot1']['entry']
+
+        for item in fan_data:
+            entry = {}
+            entry['fan'] = item['description']
+
+            if item['alarm'] == 'False':
+                entry['status'] = 'OK'
+            else:
+                entry['status'] = 'Alert'
+
+            entry['rpm'] = item['RPMs']
+            entry['detail'] = ''
+            info['fan'].append(entry)
 
         return info
 
