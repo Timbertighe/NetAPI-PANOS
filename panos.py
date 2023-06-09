@@ -42,9 +42,10 @@ import ospf
 
 # RPC settings
 #   Use 'localhost' to only allow connections from the local machine
-#   Update to an IP or FQDN to allow connections from other machines
-HOSTNAME = 'localhost'
-PORT = 8001
+#   Use '0.0.0.0' to allow connections from any machine
+#   Use a specific IP to bind to a specific NIC
+HOSTNAME = '0.0.0.0'
+PORT = 8011
 
 
 def device_info(host, token):
