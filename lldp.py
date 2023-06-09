@@ -27,7 +27,6 @@ Author:
 """
 
 import traceback as tb
-import json
 
 import xml_api
 
@@ -158,22 +157,53 @@ class Lldp:
             List of LLDP neighbours
         """
 
-        print(json.dumps(self.raw_lldp, indent=4))
-
         lldp_list = {
-            "interfaces": [
-                {
-                    "name": '',
-                    "mac": '',
-                    "system": '',
-                    "ip": '',
-                    "vendor": '',
-                    "description": '',
-                    "model": '',
-                    "serial": '',
-                }
-            ]
+            "interfaces": []
         }
+
+        neighbour_list = self.raw_lldp['response']['result']['entry']
+        if type(neighbour_list) is not list:
+            neighbour_list = [neighbour_list]
+
+        for neighbour in neighbour_list:
+            # If there are no neighbours, skip
+            if neighbour['neighbors'] is None:
+                continue
+
+            entry = {}
+
+            # PANOS doesn't provide this information
+            entry['model'] = ''
+            entry['serial'] = ''
+            entry['vendor'] = ''
+
+            # Get general information
+            entry['name'] = neighbour['@name']
+            entry['system'] = neighbour['neighbors']['entry']['system-name']
+            entry['description'] = (
+                neighbour['neighbors']['entry']['system-description']
+            )
+
+            # Get the MAC and/or the IP address if available
+            entry['mac'] = ''
+            entry['ip'] = ''
+            if 'management-address' in neighbour['neighbors']['entry']:
+                mgmt = (
+                    neighbour
+                    ['neighbors']
+                    ['entry']
+                    ['management-address']
+                    ['entry']
+                )
+                if type(mgmt) is not list:
+                    mgmt = [mgmt]
+                for address in mgmt:
+                    if address['address-type'] == "MAC":
+                        entry['mac'] = address['@name']
+                    else:
+                        entry['ip'] = address['@name']
+
+            lldp_list['interfaces'].append(entry)
 
         return lldp_list
 

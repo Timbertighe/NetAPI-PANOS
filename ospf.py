@@ -27,7 +27,6 @@ Author:
 """
 
 import traceback as tb
-import json
 
 import xml_api
 
@@ -54,7 +53,7 @@ class Ospf:
     __exit__(exc_type, exc_value, traceback)
         Called when the 'with' statement is finished
     summary()
-        Get a the MAC address table
+        Get the OSPF summary
     """
 
     def __init__(self, host, token):
@@ -175,111 +174,88 @@ class Ospf:
             Dictionary of OSPF information
         """
 
-        print(json.dumps(self.ospf_summary, indent=4))
-
         ospf = {
-            "id": "",
-            "reference": "",
+            "areas": [],
+            "neighbor": [],
+            "interface": [],
         }
 
-        return ospf
+        # Prepare the source information
+        general_ospf = self.ospf_summary['response']['result']['entry']
+        if type(general_ospf) is not list:
+            general_ospf = [general_ospf]
 
-    def area(self):
-        """
-        OSPF area information
+        area_list = self.ospf_area['response']['result']['entry']
+        if type(area_list) is not list:
+            area_list = [area_list]
 
-        Parameters
-        ----------
-        None
+        if 'entry' in self.ospf_neighbor['response']['result']:
+            neighbour_list = self.ospf_neighbor['response']['result']['entry']
+            if type(neighbour_list) is not list:
+                neighbour_list = [neighbour_list]
+        else:
+            neighbour_list = []
 
-        Raises
-        ------
-        None
+        interface_list = self.ospf_interface['response']['result']['entry']
+        if type(interface_list) is not list:
+            interface_list = [interface_list]
 
-        Returns
-        -------
-        ospf : dict
-            Dictionary of area information
-        """
+        # Collect general OSPF information
+        for ospf_entry in general_ospf:
+            # Only support the default instance
+            if ospf_entry['virtual-router'] != 'default':
+                continue
 
-        print(json.dumps(self.ospf_area, indent=4))
+            ospf['id'] = ospf_entry['router-id']
+            ospf['reference'] = "100m"
 
-        ospf = {
-            "areas": [
-                {
-                    "id": "",
-                    "type": "",
-                    "authentication": "",
-                    "neigboours": "",
-                }
-            ]
-        }
+        # Collect area information
+        for area in area_list:
+            # Only support the default instance
+            if area['virtual-router'] != 'default':
+                continue
 
-        return ospf
+            entry = {}
+            entry['id'] = area['area-id']
+            entry['type'] = area['area-type']
 
-    def neighbor(self):
-        """
-        OSPF neighbour information
+            # Authentication is interface based in PANOS
+            entry['authentication'] = None
 
-        Parameters
-        ----------
-        None
+            # Collect the neighbour count per area
+            counter = 0
+            for neighbour in neighbour_list:
+                if neighbour['area-id'] == entry['id']:
+                    counter += 1
+            entry['neighbours'] = counter
 
-        Raises
-        ------
-        None
+            ospf['areas'].append(entry)
 
-        Returns
-        -------
-        ospf : dict
-            Dictionary of OSPF neighbour information
-        """
+        # Collect neighbor information
+        for neighbour in neighbour_list:
+            # Only support the default instance
+            if neighbour['virtual-router'] != 'default':
+                continue
 
-        print(json.dumps(self.ospf_neighbor, indent=4))
+            entry = {}
+            entry['address'] = neighbour['neighbor-address']
+            entry['interface'] = ''
+            entry['state'] = neighbour['status']
+            entry['id'] = neighbour['neighbor-router-id']
+            ospf['neighbor'].append(entry)
 
-        ospf = {
-            "neighbor": [
-                {
-                    "address": "",
-                    "interface": "",
-                    "state": "",
-                    "id": "",
-                }
-            ],
-        }
+        # Collect interface information
+        for interface in interface_list:
+            # Only support the default instance
+            if interface['virtual-router'] != 'default':
+                continue
 
-        return ospf
-
-    def interface(self):
-        """
-        General OSPF information
-
-        Parameters
-        ----------
-        None
-
-        Raises
-        ------
-        None
-
-        Returns
-        -------
-        ospf : dict
-            Dictionary of OSPF information
-        """
-
-        print(json.dumps(self.ospf_interface, indent=4))
-
-        ospf = {
-            "interface": [
-                {
-                    "name": "",
-                    "area": "",
-                    "state": "",
-                    "neighbors": ""
-                }
-            ]
-        }
+            entry = {}
+            entry['name'] = interface['interface-name']
+            entry['state'] = interface['status']
+            entry['area'] = interface['area-id']
+            entry['neighbors'] = ''
+            ospf['interface'].append(entry)
 
         return ospf
 

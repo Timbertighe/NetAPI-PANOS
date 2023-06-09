@@ -27,7 +27,6 @@ Author:
 """
 
 import traceback as tb
-import json
 
 import xml_api
 
@@ -156,18 +155,22 @@ class Vlan:
             List of VLANs
         """
 
-        print(json.dumps(self.raw_vlans, indent=4))
-
         vlan_list = {
-            "vlans": [
-                {
-                    "id": '',
-                    "name": '',
-                    "description": '',
-                    "irb": '',
-                }
-            ]
+            "vlans": []
         }
+
+        vlans = self.raw_vlans['response']['result']['entries']['entry']
+        if type(vlans) is not list:
+            vlans = [vlans]
+
+        for vlan in vlans:
+            if vlan['vif'] is not None:
+                entry = {}
+                entry['id'] = vlan['vif'].split('.')[1]
+                entry['name'] = vlan['name']
+                entry['description'] = ''
+                entry['irb'] = vlan['vif']
+                vlan_list['vlans'].append(entry)
 
         return vlan_list
 

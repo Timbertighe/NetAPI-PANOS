@@ -390,32 +390,41 @@ class Device:
         ntp_list = {
             "ntp-servers": []
         }
-        ntp_servers = (
-            self.system['response']['result']['system']['ntp-servers']
-        )
 
-        # Get the primary NTP server
-        if 'primary-ntp-server' in ntp_servers:
-            ntp_list['ntp-servers'].append(
-                {
-                    "server": (
-                        ntp_servers
-                        ['primary-ntp-server']
-                        ['ntp-server-address']
-                    ),
-                    "prefer": True
-                }
+        if 'ntp-servers' in self.system['response']['result']['system']:
+            ntp_servers = (
+                self.system['response']['result']['system']['ntp-servers']
             )
 
-        # Get the secondary NTP servers
-        if 'secondary-ntp-server' in ntp_servers:
+            # Get the primary NTP server
+            if 'primary-ntp-server' in ntp_servers:
+                ntp_list['ntp-servers'].append(
+                    {
+                        "server": (
+                            ntp_servers
+                            ['primary-ntp-server']
+                            ['ntp-server-address']
+                        ),
+                        "prefer": True
+                    }
+                )
+
+            # Get the secondary NTP servers
+            if 'secondary-ntp-server' in ntp_servers:
+                ntp_list['ntp-servers'].append(
+                    {
+                        "server": (
+                            ntp_servers
+                            ['secondary-ntp-server']
+                            ['ntp-server-address']
+                        ),
+                        "prefer": False
+                    }
+                )
+        else:
             ntp_list['ntp-servers'].append(
                 {
-                    "server": (
-                        ntp_servers
-                        ['secondary-ntp-server']
-                        ['ntp-server-address']
-                    ),
+                    "server": "",
                     "prefer": False
                 }
             )
@@ -497,7 +506,11 @@ class Device:
             }
         }
 
-        snmp_servers = self.raw_snmp['response']['result']['snmp-setting']
+        # Check that there is a result (there may not be for a standby device)
+        if self.raw_snmp['response']['result'] is not None:
+            snmp_servers = self.raw_snmp['response']['result']['snmp-setting']
+        else:
+            snmp_servers = []
 
         if 'name' in snmp_servers:
             snmp_list['snmp']['name'] = snmp_servers['name']
@@ -514,19 +527,25 @@ class Device:
         else:
             snmp_list['snmp']['description'] = ''
 
-        if 'v2c' in snmp_servers['access-setting']['version']:
-            entry = {}
-            entry['community'] = (
-                snmp_servers
-                ['access-setting']
-                ['version']
-                ['v2c']
-                ['snmp-community-string']
-            )
-            entry['access'] = ''
-            entry['clients'] = ['']
-            snmp_list['snmp']['communities'].append(entry)
+        if snmp_servers:
+            if 'v2c' in snmp_servers['access-setting']['version']:
+                entry = {}
+                entry['community'] = (
+                    snmp_servers
+                    ['access-setting']
+                    ['version']
+                    ['v2c']
+                    ['snmp-community-string']
+                )
+                entry['access'] = ''
+                entry['clients'] = ['']
+                snmp_list['snmp']['communities'].append(entry)
+            else:
+                snmp_list['snmp']['communities']['community'] = ''
+                snmp_list['snmp']['communities']['access'] = ''
+                snmp_list['snmp']['communities']['clients'] = ['']
         else:
+            snmp_list['snmp']['communities'] = {}
             snmp_list['snmp']['communities']['community'] = ''
             snmp_list['snmp']['communities']['access'] = ''
             snmp_list['snmp']['communities']['clients'] = ['']

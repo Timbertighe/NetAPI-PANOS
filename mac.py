@@ -27,7 +27,6 @@ Author:
 """
 
 import traceback as tb
-import json
 
 import xml_api
 
@@ -156,17 +155,32 @@ class Mac:
             List of MAC addresses
         """
 
-        print(json.dumps(self.raw_mac, indent=4))
+        table = self.raw_mac['response']['result']['entries']
+        if type(table) is not list:
+            table = [table]
 
-        mac_list = {
-            "entry": [
-                {
-                    "mac": '',
-                    "vlan": '',
-                    "interface": '',
-                }
-            ]
-        }
+        # If the FW is in L3 mode, there won't be any entries
+        # Remember, this is not ARP, its the MAC table
+        if table[0] is None:
+            mac_list = {
+                "entry": [
+                    {
+                        "mac": '',
+                        "vlan": '',
+                        "interface": '',
+                    }
+                ]
+            }
+
+        # Otherwise, get all the entries
+        # This has not been fully tested
+        else:
+            for item in table:
+                entry = {}
+                entry['mac'] = item['mac']
+                entry['vlan'] = item['vlan']
+                entry['interface'] = item['interface']
+                mac_list.append(entry)
 
         return mac_list
 

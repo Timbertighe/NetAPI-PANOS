@@ -248,11 +248,27 @@ class XmlApi:
         url = f'{self.host}/?type=op&cmd={xml}'
 
         # Make the request
-        response = requests.get(
-            url,
-            headers=self.headers,
-            verify=True
-        )
+        try:
+            response = requests.get(
+                url,
+                headers=self.headers,
+                verify=True
+            )
+        except requests.exceptions.ConnectTimeout:
+            return {
+                "error": "Timeout while connecting to device",
+                "command": xml
+            }
+        except requests.exceptions.ConnectionError:
+            return {
+                "error": "Error connecting to device",
+                "command": xml
+            }
+        except Exception as e:
+            return {
+                "error": f"Error while connecting: {e}",
+                "command": xml
+            }
 
         # Check the response was successful
         response_dict = xmltodict.parse(response.text)

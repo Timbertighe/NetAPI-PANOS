@@ -27,7 +27,6 @@ Author:
 """
 
 import traceback as tb
-import json
 
 import xml_api
 
@@ -156,23 +155,67 @@ class Routing:
             List of routes
         """
 
-        print(json.dumps(self.raw_routing, indent=4))
-
         route_list = {
-            "entry": [
+            "entry": []
+        }
+
+        routes = self.raw_routing['response']['result']['entry']
+        if type(routes) is not list:
+            routes = [routes]
+
+        for route in routes:
+            # Only supporting the default routing instance
+            if route['virtual-router'] != 'default':
+                continue
+
+            # Only supporting unicast
+            if route['route-table'] != 'unicast':
+                continue
+
+            entry = {}
+            entry['route'] = route['destination']
+            entry['metric'] = route['metric']
+
+            # Parse the flags to get the prococol
+            route_type = route['flags'].replace('A', '')
+            route_type = route_type.replace('?', '')
+            route_type = route_type.replace('E', '')
+            route_type = route_type.replace('M', '')
+            route_type = route_type.replace('~', '')
+            route_type = route_type.replace(' ', '')
+
+            match route_type:
+                case 'H':
+                    entry['protocol'] = 'host'
+                case 'C':
+                    entry['protocol'] = 'connected'
+                case 'S':
+                    entry['protocol'] = 'static'
+                case 'B':
+                    entry['protocol'] = 'bgp'
+                case 'R':
+                    entry['protocol'] = 'rip'
+                case 'Oi':
+                    entry['protocol'] = 'ospf intra-area'
+                case 'Oo':
+                    entry['protocol'] = 'ospf inter-area'
+                case 'O1':
+                    entry['protocol'] = 'ospf external type 1'
+                case 'O2':
+                    entry['protocol'] = 'ospf external type 2'
+                case 'O':
+                    entry['protocol'] = 'ospf'
+                case _:
+                    entry['protocol'] = route_type
+
+            entry['next-hop'] = [
                 {
-                    "route": '',
-                    "protocol": '',
-                    "metric": '',
-                    "next-hop": [
-                        {
-                            "hop": '',
-                            "interface": ''
-                        }
-                    ]
+                    "hop": route['nexthop'],
+                    "interface": route['interface']
                 }
             ]
-        }
+
+            route_list['entry'].append(entry)
 
         return route_list
 
